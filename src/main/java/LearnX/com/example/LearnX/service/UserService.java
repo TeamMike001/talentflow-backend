@@ -1,0 +1,185 @@
+package LearnX.com.example.LearnX.service;
+
+import LearnX.com.example.LearnX.Enum.Role;
+import LearnX.com.example.LearnX.Model.User;
+import LearnX.com.example.LearnX.Model.UserPrincipal;
+import LearnX.com.example.LearnX.Repository.UserRepository;
+import LearnX.com.example.LearnX.dtos.UpdateUserDto;
+import LearnX.com.example.LearnX.dtos.UserResponseDto;
+import LearnX.com.example.LearnX.mapper.UserMapper;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final UserMapper userMapper;
+
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       UserMapper userMapper) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.userMapper = userMapper;
+    }
+    User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new RuntimeException("No authenticated user");
+        }
+
+        Object principal = auth.getPrincipal();
+        String email;
+
+        if (principal instanceof UserPrincipal) {
+            email = ((UserPrincipal) principal).getUsername();
+        }
+        else if (principal instanceof OAuth2User) {
+            email = ((OAuth2User) principal).getAttribute("email");
+        }
+        else if (principal instanceof String) {
+            email = (String) principal;
+        }
+        else {
+            throw new RuntimeException("Unsupported principal type: " + principal.getClass());
+        }
+
+        if (email == null || email.isEmpty()) {
+            throw new RuntimeException("Email not found from principal");
+        }
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found for email: " + email));
+    }
+
+
+    public List<UserResponseDto> getAllUsers() {
+        User current = getCurrentUser();
+        if (current.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Access denied: Only admin can view all users");
+        }
+        return userRepository.findAll().stream()
+                .map(userMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<UserResponseDto> getAllStudents() {
+        User current = getCurrentUser();
+        if (current.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Access denied: Only admin can view students");
+        }
+        return userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.STUDENT)
+                .map(userMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<UserResponseDto> getAllInstructors() {
+        User current = getCurrentUser();
+        if (current.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Access denied: Only admin can view instructors");
+        }
+        return userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.INSTRUCTOR)
+                .map(userMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<UserResponseDto> getAllAdmins() {
+        User current = getCurrentUser();
+        if (current.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Access denied: Only admin can view admins");
+        }
+        return userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.ADMIN)
+                .map(userMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    public UserResponseDto getUserByEmail(String email) {
+        User current = getCurrentUser();
+        User target = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+
+        if (current.getRole() != Role.ADMIN && !current.getEmail().equals(target.getEmail())) {
+            throw new RuntimeException("Access denied: You can only view your own profile");
+        }
+        return userMapper.toResponseDto(target);
+    }
+
+    public UserResponseDto getUserById(Long id) {
+        User current = getCurrentUser();
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (current.getRole() != Role.ADMIN && !current.getId().equals(target.getId())) {
+            throw new RuntimeException("Access denied: You can only view your own profile");
+        }
+        return userMapper.toResponseDto(target);
+    }
+
+    @Transactional
+    public UserResponseDto updateUser(Long id, UpdateUserDto updateDto) {
+        User current = getCurrentUser();
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (current.getRole() != Role.ADMIN && !current.getId().equals(target.getId())) {
+            throw new RuntimeException("Access denied: You can only update your own profile");
+        }
+
+        if (updateDto.name() != null && !updateDto.name().isEmpty()) {
+            target.setName(updateDto.name());
+        }
+
+        if (updateDto.email() != null && !updateDto.email().isEmpty()) {
+            String newEmail = updateDto.email();
+
+            userRepository.findByEmail(newEmail).ifPresent(existing -> {
+                if (!existing.getId().equals(target.getId())) {
+                    throw new RuntimeException("Email already in use by another user");
+                }
+            });
+
+            target.setEmail(newEmail);
+        }
+
+        if (updateDto.password() != null && !updateDto.password().isEmpty()) {
+            target.setPassword(passwordEncoder.encode(updateDto.password()));
+        }
+
+        return userMapper.toResponseDto(userRepository.save(target));
+    }
+
+    @Transactional
+    public void deleteUser(Long id) {
+        User current = getCurrentUser();
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (current.getRole() != Role.ADMIN && !current.getId().equals(target.getId())) {
+            throw new RuntimeException("Access denied: You can only delete your own account");
+        }
+        userRepository.delete(target);
+    }
+
+    @Transactional
+    public void deleteOwnAccount() {
+        User current = getCurrentUser();
+        userRepository.delete(current);
+    }
+
+    public UserResponseDto getCurrentUserProfile() {
+        User current = getCurrentUser();
+        return userMapper.toResponseDto(current);
+    }
+}

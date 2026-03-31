@@ -11,10 +11,6 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "activity_logs")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class ActivityLog {
 
     @Id
@@ -25,8 +21,71 @@ public class ActivityLog {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+    private boolean completed = false;
+
+
+    public ActivityLog(Long id, String action, LocalDateTime createdAt, boolean completed, Lesson lesson, User user) {
+        this.id = id;
+        this.action = action;
+        this.createdAt = createdAt;
+        this.completed = completed;
+        this.lesson = lesson;
+        this.user = user;
+    }
+
+    @ManyToOne
+    @JoinColumn(name = "lesson_id")
+    private Lesson lesson;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public void setAction(String action) {
+        this.action = action;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
+    }
+
+    public Lesson getLesson() {
+        return lesson;
+    }
+
+    public void setLesson(Lesson lesson) {
+        this.lesson = lesson;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
 }
