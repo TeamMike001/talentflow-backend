@@ -25,7 +25,6 @@ public class AssignmentMapper {
         assignment.setDescription(dto.description());
         assignment.setDueDate(dto.dueDate());
         assignment.setMaxScore(dto.maxScore());
-        // Course must be set by service
         return assignment;
     }
 }

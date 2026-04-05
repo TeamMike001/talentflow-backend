@@ -15,7 +15,8 @@ public class EnrollmentMapper {
                 enrollment.getStudent() != null ? enrollment.getStudent().getId() : null,
                 enrollment.getCourse() != null ? enrollment.getCourse().getId() : null,
                 enrollment.getCourse() != null ? enrollment.getCourse().getTitle() : null,
-                enrollment.getEnrolledAt()
+                enrollment.getEnrolledAt(),
+                enrollment.getProgressPercentage()          // ← This was missing
         );
     }
 
@@ -23,6 +24,7 @@ public class EnrollmentMapper {
         Enrollment enrollment = new Enrollment();
         enrollment.setStudent(student);
         enrollment.setCourse(course);
+        enrollment.setProgressPercentage(0);   // Important: set default progress
         return enrollment;
     }
 }

@@ -7,5 +7,5 @@ public record EnrollmentResponseDto (
      Long studentId,
     Long courseId,
     String courseTitle,
-    LocalDateTime enrolledAt){
+    LocalDateTime enrolledAt,Integer progressPercentage){
 }

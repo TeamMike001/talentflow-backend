@@ -41,6 +41,10 @@ public class ActivityLog {
     @JoinColumn(name = "user_id")
     private User user;
 
+    public ActivityLog() {
+
+    }
+
     public Long getId() {
         return id;
     }

@@ -20,13 +20,16 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final CourseMapper courseMapper;
     private final UserService userService;
+    private final NotificationService notificationService;   // Injected for notifications
 
     public CourseService(CourseRepository courseRepository,
                          CourseMapper courseMapper,
-                         UserService userService) {
+                         UserService userService,
+                         NotificationService notificationService) {
         this.courseRepository = courseRepository;
         this.courseMapper = courseMapper;
         this.userService = userService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -39,6 +42,15 @@ public class CourseService {
 
         Course course = courseMapper.toEntity(requestDto, currentUser);
         Course savedCourse = courseRepository.save(course);
+
+        // Send notification if the course is published
+        if (savedCourse.isPublished()) {
+            String title = "New Course Published";
+            String message = "A new course '" + savedCourse.getTitle() + "' has been published. Check it out!";
+
+            notificationService.sendNotification(currentUser, title, message);   // Notify the instructor first
+            // You can also notify enrolled students here if needed
+        }
 
         return courseMapper.toResponseDto(savedCourse);
     }
@@ -53,13 +65,11 @@ public class CourseService {
     // ====================== GET ALL COURSES (Admin + Instructor) ======================
     public List<CourseResponseDto> getAllCourses() {
         User currentUser = userService.getCurrentUser();
-
         if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.INSTRUCTOR) {
             return courseRepository.findAll().stream()
                     .map(courseMapper::toResponseDto)
                     .collect(Collectors.toList());
         }
-
         throw new RuntimeException("Access denied: Only admins and instructors can view all courses");
     }
 
@@ -68,7 +78,6 @@ public class CourseService {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        // Students can only see published courses
         User currentUser = userService.getCurrentUser();
         if (currentUser.getRole() == Role.STUDENT && !course.isPublished()) {
             throw new RuntimeException("Access denied: This course is not published");
@@ -81,39 +90,48 @@ public class CourseService {
     @Transactional
     public CourseResponseDto updateCourse(Long id, CourseRequestDto requestDto) {
         User currentUser = userService.getCurrentUser();
+
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        // Only the instructor who created it or Admin can update
         if (currentUser.getRole() != Role.ADMIN &&
-                (currentUser.getRole() != Role.INSTRUCTOR || !course.getInstructor().getId().equals(currentUser.getId()))) {
+                (currentUser.getRole() != Role.INSTRUCTOR ||
+                        !course.getInstructor().getId().equals(currentUser.getId()))) {
             throw new RuntimeException("Access denied: You can only update your own courses");
         }
 
-        // Update fields
         course.setTitle(requestDto.title());
         course.setDescription(requestDto.description());
         course.setThumbnail(requestDto.thumbnail());
         course.setPublished(requestDto.published());
 
-        // If published, change status to APPROVED (optional)
         if (requestDto.published()) {
             course.setStatus(TaskStatus.APPROVED);
         }
 
         Course updatedCourse = courseRepository.save(course);
+
+        // Send notification when course becomes published
+        if (requestDto.published() && !course.isPublished()) {   // was not published before
+            String title = "New Course Published";
+            String message = "A new course '" + updatedCourse.getTitle() + "' has been published.";
+
+            notificationService.sendNotification(currentUser, title, message);
+        }
+
         return courseMapper.toResponseDto(updatedCourse);
     }
 
     @Transactional
     public void deleteCourse(Long id) {
         User currentUser = userService.getCurrentUser();
+
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        // Only Admin or the course owner (Instructor) can delete
         if (currentUser.getRole() != Role.ADMIN &&
-                (currentUser.getRole() != Role.INSTRUCTOR || !course.getInstructor().getId().equals(currentUser.getId()))) {
+                (currentUser.getRole() != Role.INSTRUCTOR ||
+                        !course.getInstructor().getId().equals(currentUser.getId()))) {
             throw new RuntimeException("Access denied: You can only delete your own courses");
         }
 

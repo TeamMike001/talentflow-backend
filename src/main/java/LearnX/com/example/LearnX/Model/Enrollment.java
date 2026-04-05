@@ -22,13 +22,24 @@ public class Enrollment {
     private Course course;
 
     private LocalDateTime enrolledAt = LocalDateTime.now();
+    private Integer progressPercentage = 0;
 
-    public Enrollment(Long id, User student, Course course, LocalDateTime enrolledAt) {
+    public Integer getProgressPercentage() {
+        return progressPercentage;
+    }
+
+    public void setProgressPercentage(Integer progressPercentage) {
+        this.progressPercentage = progressPercentage;
+    }
+
+    public Enrollment(Long id, User student, Course course, LocalDateTime enrolledAt, Integer progressPercentage) {
         this.id = id;
         this.student = student;
         this.course = course;
         this.enrolledAt = enrolledAt;
+        this.progressPercentage = progressPercentage;
     }
+
     public Enrollment() {}
 
     public Long getId() {
