@@ -1,24 +1,18 @@
-# Dockerfile
-FROM eclipse-temurin:17-jdk
+# Dockerfile - Fixed version
+FROM maven:3.9-eclipse-temurin-17 AS build
 
 WORKDIR /app
-
-# Copy Maven wrapper files
-COPY mvnw .
-COPY .mvn .mvn
 COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# Make mvnw executable (FIX)
-RUN chmod +x mvnw
+COPY src ./src
+RUN mvn clean package -DskipTests -B
+RUN ls -la target/
 
-# Download dependencies
-RUN ./mvnw dependency:go-offline -B
+FROM eclipse-temurin:17-jre-alpine
 
-# Copy source code
-COPY src src
-
-# Build the application
-RUN ./mvnw clean package -DskipTests -B
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
-CMD ["java", "-jar", "target/*.jar"]
+CMD ["java", "-jar", "app.jar"]
