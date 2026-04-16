@@ -49,15 +49,12 @@ public class EnrollmentService {
             throw new RuntimeException("Only students can enroll in courses");
         }
 
-
         Course course = courseRepository.findById(request.courseId())
                 .orElseThrow(() -> new RuntimeException("Course not found"));
-
 
         if (!course.isPublished()) {
             throw new RuntimeException("Cannot enroll: This course is not published yet");
         }
-
 
         boolean alreadyEnrolled = enrollmentRepository.existsByStudentIdAndCourseId(
                 student.getId(), course.getId());
@@ -66,15 +63,37 @@ public class EnrollmentService {
             throw new RuntimeException("You are already enrolled in this course");
         }
 
-        // Create enrollment
         Enrollment enrollment = new Enrollment();
         enrollment.setStudent(student);
         enrollment.setCourse(course);
         enrollment.setProgressPercentage(0);
 
         Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
-
         return enrollmentMapper.toResponseDto(savedEnrollment);
+    }
+
+    @Transactional
+    public void unenrollFromCourse(Long courseId) {
+        User student = userService.getCurrentUser();
+
+        if (student.getRole() != Role.STUDENT) {
+            throw new RuntimeException("Only students can unenroll from courses");
+        }
+
+        Enrollment enrollment = enrollmentRepository.findByStudentIdAndCourseId(student.getId(), courseId)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("You are not enrolled in this course"));
+
+        enrollmentRepository.delete(enrollment);
+    }
+
+    public boolean isEnrolled(Long courseId) {
+        User student = userService.getCurrentUser();
+        if (student.getRole() != Role.STUDENT) {
+            return false;
+        }
+        return enrollmentRepository.existsByStudentIdAndCourseId(student.getId(), courseId);
     }
 
     public List<EnrollmentResponseDto> getMyEnrollments() {

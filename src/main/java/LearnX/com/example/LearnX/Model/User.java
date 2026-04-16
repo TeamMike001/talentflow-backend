@@ -2,14 +2,12 @@ package LearnX.com.example.LearnX.Model;
 
 import LearnX.com.example.LearnX.Enum.Role;
 import jakarta.persistence.*;
-
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
-
 public class User {
 
     @Id
@@ -30,6 +28,9 @@ public class User {
     @Column(nullable = false)
     private boolean isLocked = false;
 
+    @Column(nullable = false)
+    private boolean online = false;  // Add this field
+
     private LocalDateTime lastActiveAt;
 
     @CreationTimestamp
@@ -46,20 +47,19 @@ public class User {
     }
 
     public boolean isOnline() {
-        if (lastActiveAt == null) return false;
-        return lastActiveAt.isAfter(LocalDateTime.now().minusMinutes(15));
+        return online;  // Use the actual field instead of calculating
     }
 
     public String getLastSeenText() {
         if (lastActiveAt == null) return "Never";
-        if (isOnline()) return "Online";
+        if (online) return "Online";
 
         java.time.Duration duration = java.time.Duration.between(lastActiveAt, LocalDateTime.now());
 
         long hours = duration.toHours();
 
         if (hours < 1) return "Last seen less than an hour ago";
-        if (hours< 24) {
+        if (hours < 24) {
             return "Last seen today";
         } else if (duration.toDays() == 1) {
             return "Last seen yesterday";
@@ -68,13 +68,14 @@ public class User {
         }
     }
 
-    public User(Long id, String name, String email, String password, boolean enabled, boolean isLocked, boolean verified, LocalDateTime lastActiveAt, LocalDateTime createdAt, LocalDateTime updatedAt, Role role) {
+    public User(Long id, String name, String email, String password, boolean enabled, boolean isLocked, boolean online, LocalDateTime lastActiveAt, LocalDateTime createdAt, LocalDateTime updatedAt, Role role) {
         this.id = id;
         this.name = name;
         this.email = email;
         this.password = password;
         this.enabled = enabled;
         this.isLocked = isLocked;
+        this.online = online;
         this.lastActiveAt = lastActiveAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -127,6 +128,10 @@ public class User {
 
     public void setLocked(boolean locked) {
         isLocked = locked;
+    }
+
+    public void setOnline(boolean online) {
+        this.online = online;
     }
 
     public LocalDateTime getLastActiveAt() {

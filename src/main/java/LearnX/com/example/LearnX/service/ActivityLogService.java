@@ -7,7 +7,6 @@ import LearnX.com.example.LearnX.Model.Lesson;
 import LearnX.com.example.LearnX.Model.User;
 import LearnX.com.example.LearnX.Repository.ActivityLogRepository;
 import LearnX.com.example.LearnX.Repository.CourseRepository;
-import LearnX.com.example.LearnX.Repository.EnrollmentRepository;
 import LearnX.com.example.LearnX.Repository.LessonRepository;
 import LearnX.com.example.LearnX.dtos.ActivityLogResponseDto;
 import LearnX.com.example.LearnX.mapper.ActivityLogMapper;
@@ -22,26 +21,26 @@ public class ActivityLogService {
 
     private final ActivityLogRepository activityLogRepository;
     private final LessonRepository lessonRepository;
-    private final CourseRepository courseRepository;           // Added
-    private final EnrollmentRepository enrollmentRepository;
+    private final CourseRepository courseRepository;
     private final ActivityLogMapper activityLogMapper;
     private final UserService userService;
     private final EnrollmentService enrollmentService;
+    private final CertificateService certificateService;
 
     public ActivityLogService(ActivityLogRepository activityLogRepository,
                               LessonRepository lessonRepository,
                               CourseRepository courseRepository,
-                              EnrollmentRepository enrollmentRepository,
                               ActivityLogMapper activityLogMapper,
                               UserService userService,
-                              EnrollmentService enrollmentService) {
+                              EnrollmentService enrollmentService,
+                              CertificateService certificateService) {
         this.activityLogRepository = activityLogRepository;
         this.lessonRepository = lessonRepository;
         this.courseRepository = courseRepository;
-        this.enrollmentRepository = enrollmentRepository;
         this.activityLogMapper = activityLogMapper;
         this.userService = userService;
         this.enrollmentService = enrollmentService;
+        this.certificateService = certificateService;
     }
 
     @Transactional
@@ -54,13 +53,6 @@ public class ActivityLogService {
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
-
-        boolean isEnrolled = enrollmentRepository.existsByStudentIdAndCourseId(
-                student.getId(), lesson.getCourse().getId());
-
-        if (!isEnrolled) {
-            throw new RuntimeException("You must be enrolled in this course to mark lessons as completed");
-        }
 
         boolean alreadyCompleted = activityLogRepository.existsByUserIdAndLessonIdAndCompletedTrue(
                 student.getId(), lessonId);
@@ -77,18 +69,23 @@ public class ActivityLogService {
 
         ActivityLog savedLog = activityLogRepository.save(activityLog);
 
+        // Recalculate progress for this course
         enrollmentService.recalculateCourseProgress(lesson.getCourse().getId());
+
+        // Get updated progress to check for certificate
+        int progress = enrollmentService.getCourseProgress(lesson.getCourse().getId());
+        if (progress == 100) {
+            certificateService.generateCertificateIfCompleted(lesson.getCourse().getId());
+        }
 
         return activityLogMapper.toResponseDto(savedLog);
     }
 
     public List<ActivityLogResponseDto> getMyActivityLogs() {
         User student = userService.getCurrentUser();
-
         if (student.getRole() != Role.STUDENT) {
             throw new RuntimeException("Only students can view their own activity logs");
         }
-
         return activityLogRepository.findByUserId(student.getId())
                 .stream()
                 .map(activityLogMapper::toResponseDto)
@@ -122,21 +119,17 @@ public class ActivityLogService {
 
     public List<ActivityLogResponseDto> getCompletedLessonsByCourse(Long courseId) {
         User student = userService.getCurrentUser();
-
         if (student.getRole() != Role.STUDENT) {
             throw new RuntimeException("Only students can view their completed lessons");
         }
-
         return activityLogRepository.findCompletedByUserIdAndCourseId(student.getId(), courseId)
                 .stream()
                 .map(activityLogMapper::toResponseDto)
                 .collect(Collectors.toList());
     }
 
-
     public List<ActivityLogResponseDto> getActivityLogsByCourseAndStudent(Long courseId, Long studentId) {
         User currentUser = userService.getCurrentUser();
-
 
         if (currentUser.getRole() == Role.ADMIN) {
             return activityLogRepository.findByUserIdAndCourseId(studentId, courseId)
@@ -148,11 +141,9 @@ public class ActivityLogService {
         if (currentUser.getRole() == Role.INSTRUCTOR) {
             Course course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new RuntimeException("Course not found"));
-
             if (!course.getInstructor().getId().equals(currentUser.getId())) {
                 throw new RuntimeException("Access denied: You can only view students in your own courses");
             }
-
             return activityLogRepository.findByUserIdAndCourseId(studentId, courseId)
                     .stream()
                     .map(activityLogMapper::toResponseDto)

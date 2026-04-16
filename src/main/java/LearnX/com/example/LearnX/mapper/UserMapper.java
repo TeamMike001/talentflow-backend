@@ -4,7 +4,6 @@ import LearnX.com.example.LearnX.Enum.Role;
 import LearnX.com.example.LearnX.Model.User;
 import LearnX.com.example.LearnX.dtos.UserRegistrationDto;
 import LearnX.com.example.LearnX.dtos.UserResponseDto;
-
 import LearnX.com.example.LearnX.dtos.UserSummaryDto;
 import org.springframework.stereotype.Component;
 
@@ -12,13 +11,18 @@ import org.springframework.stereotype.Component;
 public class UserMapper {
 
     public UserResponseDto toResponseDto(User user) {
+        // Generate avatar URL based on user's name and role
+        String avatar = "https://ui-avatars.com/api/?background=" +
+                (user.getRole() == Role.INSTRUCTOR ? "2563EB" : "16A34A") +
+                "&color=fff&name=" + (user.getName() != null && !user.getName().isEmpty() ? user.getName().charAt(0) : "U");
+
         return new UserResponseDto(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
                 user.getRole(),
-                user.isEnabled(),
-                user.isLocked(),
+                user.isOnline(),
+                avatar,
                 user.getLastActiveAt(),
                 user.getLastSeenText()
         );

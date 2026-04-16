@@ -2,7 +2,9 @@ package LearnX.com.example.LearnX.Controller;
 
 import LearnX.com.example.LearnX.dtos.AssignmentRequestDto;
 import LearnX.com.example.LearnX.dtos.AssignmentResponseDto;
+import LearnX.com.example.LearnX.dtos.SubmissionResponseDto;
 import LearnX.com.example.LearnX.service.AssignmentService;
+import LearnX.com.example.LearnX.service.SubmissionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,9 +15,11 @@ import java.util.List;
 public class AssignmentController {
 
     private final AssignmentService assignmentService;
+    private final SubmissionService submissionService;
 
-    public AssignmentController(AssignmentService assignmentService) {
+    public AssignmentController(AssignmentService assignmentService, SubmissionService submissionService) {
         this.assignmentService = assignmentService;
+        this.submissionService = submissionService;
     }
 
     @PostMapping
@@ -23,6 +27,10 @@ public class AssignmentController {
             @PathVariable Long courseId,
             @RequestBody AssignmentRequestDto request) {
         return ResponseEntity.ok(assignmentService.createAssignment(courseId, request));
+    }
+    @GetMapping("/{assignmentId}/my-submission")
+    public ResponseEntity<SubmissionResponseDto> getMySubmission(@PathVariable Long assignmentId) {
+        return ResponseEntity.ok(submissionService.getMySubmissionForAssignment(assignmentId));
     }
 
     @GetMapping

@@ -1,42 +1,42 @@
 package LearnX.com.example.LearnX.Model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "assignments")
 public class Assignment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String title;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
+
     private LocalDateTime dueDate;
-    private int maxScore;
+
+    private Integer maxScore;
 
     @ManyToOne
-    @JoinColumn(name = "course_id")
+    @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 
-    public Assignment(Long id, String title, String description, LocalDateTime dueDate, int maxScore, Course course) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.dueDate = dueDate;
-        this.maxScore = maxScore;
-        this.course = course;
-    }
+    @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Submission> submissions = new ArrayList<>();
 
-    public Assignment() {
+    private LocalDateTime createdAt;
 
-    }
+    private LocalDateTime updatedAt;
 
+    // Constructors
+    public Assignment() {}
+
+    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -69,11 +69,11 @@ public class Assignment {
         this.dueDate = dueDate;
     }
 
-    public int getMaxScore() {
+    public Integer getMaxScore() {
         return maxScore;
     }
 
-    public void setMaxScore(int maxScore) {
+    public void setMaxScore(Integer maxScore) {
         this.maxScore = maxScore;
     }
 
@@ -83,5 +83,29 @@ public class Assignment {
 
     public void setCourse(Course course) {
         this.course = course;
+    }
+
+    public List<Submission> getSubmissions() {
+        return submissions;
+    }
+
+    public void setSubmissions(List<Submission> submissions) {
+        this.submissions = submissions;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

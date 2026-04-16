@@ -5,6 +5,7 @@ import LearnX.com.example.LearnX.Model.User;
 import LearnX.com.example.LearnX.Model.UserPrincipal;
 import LearnX.com.example.LearnX.Repository.UserRepository;
 import LearnX.com.example.LearnX.dtos.UpdateUserDto;
+import LearnX.com.example.LearnX.dtos.UserDto;
 import LearnX.com.example.LearnX.dtos.UserResponseDto;
 import LearnX.com.example.LearnX.mapper.UserMapper;
 import org.springframework.security.core.Authentication;
@@ -14,6 +15,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,7 +33,8 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
     }
-    User getCurrentUser() {
+
+    public User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
             throw new RuntimeException("No authenticated user");
@@ -83,6 +86,32 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    // Add this method to UserService class
+    public UserDto getUserDtoById(Long id) {
+        User user = getUserEntityById(id);
+
+        // Create avatar URL
+        String userName = user.getName() != null ? user.getName() : user.getEmail().split("@")[0];
+        char firstChar = userName.charAt(0);
+        String avatar = "https://ui-avatars.com/api/?background=2563EB&color=fff&name=" + firstChar;
+
+        // Format last active time
+        String lastActiveAtStr = null;
+        if (user.getLastActiveAt() != null) {
+            lastActiveAtStr = user.getLastActiveAt().toString();
+        }
+
+        return new UserDto(
+                user.getId(),
+                userName,
+                user.getEmail(),
+                user.getRole(),
+                avatar,
+                user.isOnline(),
+                lastActiveAtStr
+        );
+    }
+
     public List<UserResponseDto> getAllInstructors() {
         User current = getCurrentUser();
         if (current.getRole() != Role.ADMIN) {
@@ -115,6 +144,7 @@ public class UserService {
         }
         return userMapper.toResponseDto(target);
     }
+
 
     public UserResponseDto getUserById(Long id) {
         User current = getCurrentUser();
@@ -181,5 +211,28 @@ public class UserService {
     public UserResponseDto getCurrentUserProfile() {
         User current = getCurrentUser();
         return userMapper.toResponseDto(current);
+    }
+
+    public List<User> getUsersByIds(List<Long> ids) {
+        return userRepository.findAllById(ids);
+    }
+
+    public List<User> getAllUsersEntities() {
+        return userRepository.findAll();
+    }
+
+    @Transactional
+    public void updateUserLastActive(User user) {
+        user.setLastActiveAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found for email: " + email));
+    }
+    public User getUserEntityById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
 }

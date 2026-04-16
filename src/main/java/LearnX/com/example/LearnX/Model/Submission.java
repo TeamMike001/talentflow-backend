@@ -1,49 +1,44 @@
 package LearnX.com.example.LearnX.Model;
 
 import jakarta.persistence.*;
-
-
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "submissions")
-
 public class Submission {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "assignment_id")
+    @JoinColumn(name = "assignment_id", nullable = false)
     private Assignment assignment;
 
     @ManyToOne
-    @JoinColumn(name = "student_id")
+    @JoinColumn(name = "student_id", nullable = false)
     private User student;
 
+    @Column(columnDefinition = "TEXT")
     private String content;
-    private LocalDateTime submittedAt = LocalDateTime.now();
+
+    private String attachmentUrl;
+
     private Integer score;
+
+    @Column(columnDefinition = "TEXT")
     private String feedback;
+
+    private boolean isGraded = false;
+
+    private LocalDateTime submittedAt;
 
     private LocalDateTime gradedAt;
 
-    public Submission(Long id, Assignment assignment, User student, String content, LocalDateTime submittedAt, Integer score, String feedback, LocalDateTime gradedAt) {
-        this.id = id;
-        this.assignment = assignment;
-        this.student = student;
-        this.content = content;
-        this.submittedAt = submittedAt;
-        this.score = score;
-        this.feedback = feedback;
-        this.gradedAt = gradedAt;
+    // Constructors
+    public Submission() {}
 
-    }
-
-    public Submission() {
-
-    }
-
+    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -76,12 +71,12 @@ public class Submission {
         this.content = content;
     }
 
-    public LocalDateTime getSubmittedAt() {
-        return submittedAt;
+    public String getAttachmentUrl() {
+        return attachmentUrl;
     }
 
-    public void setSubmittedAt(LocalDateTime submittedAt) {
-        this.submittedAt = submittedAt;
+    public void setAttachmentUrl(String attachmentUrl) {
+        this.attachmentUrl = attachmentUrl;
     }
 
     public Integer getScore() {
@@ -100,6 +95,22 @@ public class Submission {
         this.feedback = feedback;
     }
 
+    public boolean isGraded() {
+        return isGraded;
+    }
+
+    public void setGraded(boolean graded) {
+        isGraded = graded;
+    }
+
+    public LocalDateTime getSubmittedAt() {
+        return submittedAt;
+    }
+
+    public void setSubmittedAt(LocalDateTime submittedAt) {
+        this.submittedAt = submittedAt;
+    }
+
     public LocalDateTime getGradedAt() {
         return gradedAt;
     }
@@ -107,5 +118,4 @@ public class Submission {
     public void setGradedAt(LocalDateTime gradedAt) {
         this.gradedAt = gradedAt;
     }
-
 }

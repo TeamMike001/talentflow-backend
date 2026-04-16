@@ -8,6 +8,7 @@ import LearnX.com.example.LearnX.mapper.NotificationMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,12 +28,16 @@ public class NotificationService {
     }
 
 
-    @Transactional
+
     public void sendNotification(User recipient, String title, String message) {
-        Notification notification = new Notification(title, message, recipient);
+        Notification notification = new Notification();
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setRecipient(recipient);
+        notification.setRead(false);
+        notification.setCreatedAt(LocalDateTime.now());
         notificationRepository.save(notification);
     }
-
 
     public List<NotificationResponseDto> getMyNotifications() {
         User currentUser = userService.getCurrentUser();

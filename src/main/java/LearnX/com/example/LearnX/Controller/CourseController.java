@@ -1,6 +1,6 @@
 package LearnX.com.example.LearnX.Controller;
 
-import LearnX.com.example.LearnX.dtos.CourseRequestDto;
+import LearnX.com.example.LearnX.dtos.CourseCreateDto;
 import LearnX.com.example.LearnX.dtos.CourseResponseDto;
 import LearnX.com.example.LearnX.service.CourseService;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +19,12 @@ public class CourseController {
     }
 
     @PostMapping
-    public ResponseEntity<CourseResponseDto> createCourse(@RequestBody CourseRequestDto request) {
+    public ResponseEntity<CourseResponseDto> createCourse(@RequestBody CourseCreateDto request) {
         return ResponseEntity.ok(courseService.createCourse(request));
+    }
+    @GetMapping("/test")
+    public ResponseEntity<String> test() {
+        return ResponseEntity.ok("Course API is working!");
     }
 
     @GetMapping("/published")
@@ -37,10 +41,14 @@ public class CourseController {
     public ResponseEntity<CourseResponseDto> getCourseById(@PathVariable Long id) {
         return ResponseEntity.ok(courseService.getCourseById(id));
     }
+    @GetMapping("/my-courses")
+    public ResponseEntity<List<CourseResponseDto>> getMyCourses() {
+        return ResponseEntity.ok(courseService.getMyCourses());
+    }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CourseResponseDto> updateCourse(@PathVariable Long id, 
-                                                          @RequestBody CourseRequestDto request) {
+    public ResponseEntity<CourseResponseDto> updateCourse(@PathVariable Long id,
+                                                          @RequestBody CourseCreateDto request) {
         return ResponseEntity.ok(courseService.updateCourse(id, request));
     }
 

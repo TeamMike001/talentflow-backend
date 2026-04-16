@@ -21,19 +21,15 @@ public class Lesson {
     @ManyToOne
     @JoinColumn(name = "course_id")
     private Course course;
+    @ManyToOne
+    @JoinColumn(name = "section_id")
+    private Section section;
+     public Lesson(Long id, String title, String content, String attachmentUrl, int orderIndex, Course course, Section section) {
 
-    public Lesson(Long id, String title, String content, String attachmentUrl, int orderIndex, Course course) {
-        this.id = id;
-        this.title = title;
-        this.content = content;
-        this.attachmentUrl = attachmentUrl;
-        this.orderIndex = orderIndex;
-        this.course = course;
-    }
+     }
+     public Lesson() {
 
-    public Lesson() {
-
-    }
+     }
 
     public Long getId() {
         return id;
@@ -81,5 +77,13 @@ public class Lesson {
 
     public void setCourse(Course course) {
         this.course = course;
+    }
+
+    public Section getSection() {
+        return section;
+    }
+
+    public void setSection(Section section) {
+        this.section = section;
     }
 }
