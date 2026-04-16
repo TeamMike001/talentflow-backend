@@ -29,7 +29,7 @@ public class User {
     private boolean isLocked = false;
 
     @Column(nullable = false)
-    private boolean online = false;  // Add this field
+    private boolean online = false;
 
     private LocalDateTime lastActiveAt;
 
@@ -42,46 +42,39 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    public User() {
+    // Security Questions
+    @Column(name = "security_question_1")
+    private String securityQuestion1 = "What is your mother's maiden name?";
 
-    }
+    @Column(name = "security_answer_1")
+    private String securityAnswer1;
 
-    public boolean isOnline() {
-        return online;  // Use the actual field instead of calculating
-    }
+    @Column(name = "security_question_2")
+    private String securityQuestion2 = "What was your first pet's name?";
 
-    public String getLastSeenText() {
-        if (lastActiveAt == null) return "Never";
-        if (online) return "Online";
+    @Column(name = "security_answer_2")
+    private String securityAnswer2;
 
-        java.time.Duration duration = java.time.Duration.between(lastActiveAt, LocalDateTime.now());
+    @Column(name = "security_question_3")
+    private String securityQuestion3 = "What city were you born in?";
 
-        long hours = duration.toHours();
+    @Column(name = "security_answer_3")
+    private String securityAnswer3;
 
-        if (hours < 1) return "Last seen less than an hour ago";
-        if (hours < 24) {
-            return "Last seen today";
-        } else if (duration.toDays() == 1) {
-            return "Last seen yesterday";
-        } else {
-            return "Last seen " + lastActiveAt.toLocalDate();
-        }
-    }
+    // Constructors
+    public User() {}
 
-    public User(Long id, String name, String email, String password, boolean enabled, boolean isLocked, boolean online, LocalDateTime lastActiveAt, LocalDateTime createdAt, LocalDateTime updatedAt, Role role) {
-        this.id = id;
+    public User(String name, String email, String password, Role role) {
         this.name = name;
         this.email = email;
         this.password = password;
-        this.enabled = enabled;
-        this.isLocked = isLocked;
-        this.online = online;
-        this.lastActiveAt = lastActiveAt;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
         this.role = role;
+        this.enabled = true;
+        this.isLocked = false;
+        this.online = false;
     }
 
+    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -130,6 +123,10 @@ public class User {
         isLocked = locked;
     }
 
+    public boolean isOnline() {
+        return online;
+    }
+
     public void setOnline(boolean online) {
         this.online = online;
     }
@@ -164,5 +161,66 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getSecurityQuestion1() {
+        return securityQuestion1;
+    }
+
+    public void setSecurityQuestion1(String securityQuestion1) {
+        this.securityQuestion1 = securityQuestion1;
+    }
+
+    public String getSecurityAnswer1() {
+        return securityAnswer1;
+    }
+
+    public void setSecurityAnswer1(String securityAnswer1) {
+        this.securityAnswer1 = securityAnswer1;
+    }
+
+    public String getSecurityQuestion2() {
+        return securityQuestion2;
+    }
+
+    public void setSecurityQuestion2(String securityQuestion2) {
+        this.securityQuestion2 = securityQuestion2;
+    }
+
+    public String getSecurityAnswer2() {
+        return securityAnswer2;
+    }
+
+    public void setSecurityAnswer2(String securityAnswer2) {
+        this.securityAnswer2 = securityAnswer2;
+    }
+
+    public String getSecurityQuestion3() {
+        return securityQuestion3;
+    }
+
+    public void setSecurityQuestion3(String securityQuestion3) {
+        this.securityQuestion3 = securityQuestion3;
+    }
+
+    public String getSecurityAnswer3() {
+        return securityAnswer3;
+    }
+
+    public void setSecurityAnswer3(String securityAnswer3) {
+        this.securityAnswer3 = securityAnswer3;
+    }
+
+    public String getLastSeenText() {
+        if (lastActiveAt == null) return "Never";
+        if (online) return "Online";
+
+        java.time.Duration duration = java.time.Duration.between(lastActiveAt, LocalDateTime.now());
+        long hours = duration.toHours();
+
+        if (hours < 1) return "Last seen less than an hour ago";
+        if (hours < 24) return "Last seen today";
+        if (duration.toDays() == 1) return "Last seen yesterday";
+        return "Last seen " + lastActiveAt.toLocalDate();
     }
 }

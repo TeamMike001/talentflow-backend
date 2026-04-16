@@ -1,82 +1,78 @@
 package LearnX.com.example.LearnX.Controller;
 
-
-import LearnX.com.example.LearnX.mapper.EventRequestDto;
-import LearnX.com.example.LearnX.mapper.EventResponseDto;
+import LearnX.com.example.LearnX.dtos.EventResponseDto;
 import LearnX.com.example.LearnX.service.EventService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/events")
 public class EventController {
+
     private final EventService eventService;
 
     public EventController(EventService eventService) {
         this.eventService = eventService;
     }
 
-    // ========== Event CRUD (Admin only) ==========
-
-    @PostMapping
-    public ResponseEntity<EventResponseDto> createEvent(@RequestBody EventRequestDto request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(eventService.createEvent(request));
-    }
-
-    @GetMapping("/published")
+    @GetMapping("/public")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<EventResponseDto>> getPublishedEvents() {
         return ResponseEntity.ok(eventService.getPublishedEvents());
     }
 
-    @GetMapping
-    public ResponseEntity<List<EventResponseDto>> getAllEvents() {
-        return ResponseEntity.ok(eventService.getAllEvents());
-    }
-
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EventResponseDto> getEventById(@PathVariable Long id) {
         return ResponseEntity.ok(eventService.getEventById(id));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<EventResponseDto> updateEvent(@PathVariable Long id, @RequestBody EventRequestDto request) {
-        return ResponseEntity.ok(eventService.updateEvent(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {
-        eventService.deleteEvent(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    // ========== Registration Endpoints (Students) ==========
-
     @PostMapping("/{id}/register")
-    public ResponseEntity<String> registerForEvent(@PathVariable Long id) {
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<Map<String, Object>> registerForEvent(@PathVariable Long id) {
         String message = eventService.registerForEvent(id);
-        return ResponseEntity.ok(message);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", message);
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}/cancel")
-    public ResponseEntity<Void> cancelRegistration(@PathVariable Long id) {
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<Map<String, Object>> cancelRegistration(@PathVariable Long id) {
         eventService.cancelRegistration(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/{id}/registered")
-    public ResponseEntity<Boolean> isUserRegistered(@PathVariable Long id) {
-        return ResponseEntity.ok(eventService.isUserRegistered(id));
-    }
-
-    @GetMapping("/{id}/available-tickets")
-    public ResponseEntity<Long> getAvailableTickets(@PathVariable Long id) {
-        return ResponseEntity.ok(eventService.getAvailableTickets(id));
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Registration cancelled");
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/my-registrations")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<EventResponseDto>> getMyRegisteredEvents() {
         return ResponseEntity.ok(eventService.getMyRegisteredEvents());
+    }
+
+    @GetMapping("/{id}/registered")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> isUserRegistered(@PathVariable Long id) {
+        boolean isRegistered = eventService.isUserRegistered(id);
+        Map<String, Object> response = new HashMap<>();
+        response.put("registered", isRegistered);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/available-tickets")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> getAvailableTickets(@PathVariable Long id) {
+        long availableTickets = eventService.getAvailableTickets(id);
+        Map<String, Object> response = new HashMap<>();
+        response.put("availableTickets", availableTickets);
+        return ResponseEntity.ok(response);
     }
 }

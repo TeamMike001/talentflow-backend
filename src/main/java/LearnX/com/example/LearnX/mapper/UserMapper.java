@@ -30,10 +30,20 @@ public class UserMapper {
 
     public User toEntity(UserRegistrationDto dto) {
         User user = new User();
-        user.setName(dto.name());
-        user.setEmail(dto.email());
-        user.setPassword(dto.password());
-        user.setRole(dto.role() != null ? dto.role() : Role.STUDENT);
+        user.setName(dto.getName());
+        user.setEmail(dto.getEmail());
+        user.setPassword(dto.getPassword());
+
+        if (dto.getRole() != null && !dto.getRole().isEmpty()) {
+            try {
+                user.setRole(Role.valueOf(dto.getRole().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                user.setRole(Role.STUDENT); // Default to STUDENT if invalid
+            }
+        } else {
+            user.setRole(Role.STUDENT); // Default role
+        }
+
         user.setEnabled(true);
         user.setLocked(false);
         return user;

@@ -6,11 +6,12 @@ import LearnX.com.example.LearnX.Model.EventRegistration;
 import LearnX.com.example.LearnX.Model.User;
 import LearnX.com.example.LearnX.Repository.EventRegistrationRepository;
 import LearnX.com.example.LearnX.Repository.EventRepository;
-
-import LearnX.com.example.LearnX.mapper.EventRequestDto;
-import LearnX.com.example.LearnX.mapper.EventResponseDto;
+import LearnX.com.example.LearnX.dtos.EventRequestDto;
+import LearnX.com.example.LearnX.dtos.EventResponseDto;
+import LearnX.com.example.LearnX.mapper.EventMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -113,12 +114,10 @@ public class EventService {
             throw new RuntimeException("Event is not available for registration");
         }
 
-        // Check if already registered
         if (eventRegistrationRepository.existsByEventIdAndUserId(eventId, currentUser.getId())) {
             throw new RuntimeException("You are already registered for this event");
         }
 
-        // Check available tickets
         long registeredCount = eventRegistrationRepository.countByEventId(eventId);
         if (registeredCount >= event.getTicketsAvailable()) {
             throw new RuntimeException("No tickets available for this event");
