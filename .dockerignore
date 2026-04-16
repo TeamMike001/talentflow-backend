@@ -1,0 +1,8 @@
+# .dockerignore
+.git
+.gitignore
+README.md
+.mvn/wrapper/maven-wrapper.jar
+target/
+*.log
+.DS_Store
