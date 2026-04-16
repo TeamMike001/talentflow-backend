@@ -1,6 +1,7 @@
 package LearnX.com.example.LearnX.config;
 
 import LearnX.com.example.LearnX.util.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,6 +21,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import java.util.Arrays;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -29,6 +32,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+
+    @Value("${frontend.url:https://talent-flow-frontend-team-mike.vercel.app}")
+    private String frontendUrl;
 
     public SecurityConfig(UserDetailsService userDetailsService,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -58,9 +64,15 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOriginPattern("*");
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
+        config.setAllowedOriginPatterns(Arrays.asList(
+                frontendUrl,
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "https://*.vercel.app"
+        ));
+        config.setAllowedHeaders(Arrays.asList("*"));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }
@@ -77,16 +89,35 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
                     config.setAllowCredentials(true);
-                    config.addAllowedOriginPattern("*");
-                    config.addAllowedHeader("*");
-                    config.addAllowedMethod("*");
+                    config.setAllowedOriginPatterns(Arrays.asList(
+                            frontendUrl,
+                            "http://localhost:3000",
+                            "http://localhost:3001",
+                            "https://*.vercel.app"
+                    ));
+                    config.setAllowedHeaders(Arrays.asList("*"));
+                    config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                     return config;
                 }))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**", "/error", "/auth/oauth2/success","/api/courses/public/**","/api/courses/published" ,"/api/courses/**","/ws/**").permitAll()
+                        // Public endpoints - no authentication required
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/oauth2/**",
+                                "/login/**",
+                                "/error",
+                                "/auth/oauth2/success",
+                                "/api/courses/public/**",
+                                "/api/courses/published",
+                                "/api/courses/**",
+                                "/ws/**"
+                        ).permitAll()
+                        // Admin endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Instructor endpoints
                         .requestMatchers("/api/instructor/**").hasRole("INSTRUCTOR")
+                        // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
