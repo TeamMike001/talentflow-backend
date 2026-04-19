@@ -25,6 +25,13 @@ public class EventController {
     public ResponseEntity<List<EventResponseDto>> getPublishedEvents() {
         return ResponseEntity.ok(eventService.getPublishedEvents());
     }
+    @GetMapping("/{eventId}/registrants")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<Map<String, Object>>> getEventRegistrants(@PathVariable Long eventId) {
+        List<Map<String, Object>> registrants = eventService.getEventRegistrants(eventId);
+        return ResponseEntity.ok(registrants);
+    }
+
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")

@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,6 +61,27 @@ public class EventService {
         return eventMapper.toResponseDto(updated);
     }
 
+    // FIXED: Method to get registrants for an event
+    public List<Map<String, Object>> getEventRegistrants(Long eventId) {
+        // Verify event exists
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        // Get all registrations for this event - NOW WORKS
+        List<EventRegistration> registrations = eventRegistrationRepository.findByEventId(eventId);
+
+        return registrations.stream()
+                .map(reg -> {
+                    Map<String, Object> registrant = new HashMap<>();
+                    registrant.put("studentId", reg.getUser().getId());
+                    registrant.put("studentName", reg.getUser().getName() != null ? reg.getUser().getName() : "Student");
+                    registrant.put("studentEmail", reg.getUser().getEmail());
+                    registrant.put("registeredAt", reg.getRegisteredAt());
+                    return registrant;
+                })
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public void deleteEvent(Long id) {
         User currentUser = userService.getCurrentUser();
@@ -67,6 +90,12 @@ public class EventService {
         }
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        // Delete all registrations first
+        List<EventRegistration> registrations = eventRegistrationRepository.findByEventId(id);
+        eventRegistrationRepository.deleteAll(registrations);
+
+        // Then delete the event
         eventRepository.delete(event);
     }
 
