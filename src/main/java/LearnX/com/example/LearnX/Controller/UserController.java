@@ -97,6 +97,28 @@ public class UserController {
             return ResponseEntity.ok(List.of());
         }
     }
+    // Add to UserController.java
+
+    @GetMapping("/instructors")
+    @PreAuthorize("hasAnyRole('ADMIN', 'INSTRUCTOR')")
+    public ResponseEntity<List<UserResponseDto>> getAllInstructors() {
+        List<UserResponseDto> instructors = userService.getAllInstructors();
+        return ResponseEntity.ok(instructors);
+    }
+
+    @GetMapping("/students")
+    @PreAuthorize("hasAnyRole('ADMIN', 'INSTRUCTOR')")
+    public ResponseEntity<List<UserResponseDto>> getAllStudents() {
+        List<UserResponseDto> students = userService.getAllStudents();
+        return ResponseEntity.ok(students);
+    }
+
+    @GetMapping("/courses/{courseId}/students")
+    @PreAuthorize("hasAnyRole('ADMIN', 'INSTRUCTOR')")
+    public ResponseEntity<List<Map<String, Object>>> getCourseStudents(@PathVariable Long courseId) {
+        List<Map<String, Object>> students = userService.getCourseStudents(courseId);
+        return ResponseEntity.ok(students);
+    }
 
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")

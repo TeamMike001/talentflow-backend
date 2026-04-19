@@ -114,19 +114,6 @@ public class UserService {
         }).collect(Collectors.toList());
     }
 
-    public List<Map<String, Object>> getCourseStudents(Long courseId) {
-        List<Enrollment> enrollments = enrollmentRepository.findByCourseId(courseId);
-        return enrollments.stream()
-                .map(e -> Map.<String, Object>of(
-                        "id", e.getStudent().getId(),
-                        "name", e.getStudent().getName(),
-                        "email", e.getStudent().getEmail(),
-                        "enrolledAt", e.getEnrolledAt(),
-                        "progress", e.getProgressPercentage()
-                ))
-                .collect(Collectors.toList());
-    }
-
     public Map<String, Object> getAdminStats() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalUsers", userRepository.count());
@@ -147,16 +134,61 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    // Get all students (Admin only)
     public List<UserResponseDto> getAllStudents() {
         User current = getCurrentUser();
-        if (current.getRole() != Role.ADMIN) {
-            throw new RuntimeException("Access denied: Only admin can view students");
+        if (current.getRole() != Role.ADMIN && current.getRole() != Role.INSTRUCTOR) {
+            throw new RuntimeException("Access denied: Only admin and instructors can view students");
         }
-        return userRepository.findAll().stream()
-                .filter(user -> user.getRole() == Role.STUDENT)
+        return userRepository.findByRole(Role.STUDENT).stream()
                 .map(userMapper::toResponseDto)
                 .collect(Collectors.toList());
     }
+
+    // Get all instructors (Admin only)
+    public List<UserResponseDto> getAllInstructors() {
+        User current = getCurrentUser();
+        if (current.getRole() != Role.ADMIN && current.getRole() != Role.INSTRUCTOR) {
+            throw new RuntimeException("Access denied: Only admin and instructors can view instructors");
+        }
+        return userRepository.findByRole(Role.INSTRUCTOR).stream()
+                .map(userMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    // Fixed getCourseStudents method - Use repository instead of direct relationship
+    public List<Map<String, Object>> getCourseStudents(Long courseId) {
+        // Verify course exists
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        // Verify the current user is the instructor of this course or admin
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != Role.ADMIN &&
+                !course.getInstructor().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Access denied: You can only view students in your own courses");
+        }
+
+        // Use repository to get enrollments instead of course.getEnrollments()
+        List<Enrollment> enrollments = enrollmentRepository.findByCourseId(courseId);
+
+        return enrollments.stream()
+                .map(e -> {
+                    Map<String, Object> studentInfo = new HashMap<>();
+                    studentInfo.put("id", e.getStudent().getId());
+                    studentInfo.put("name", e.getStudent().getName() != null ? e.getStudent().getName() : "Student");
+                    studentInfo.put("email", e.getStudent().getEmail());
+                    studentInfo.put("enrolledAt", e.getEnrolledAt());
+                    studentInfo.put("progress", e.getProgressPercentage() != null ? e.getProgressPercentage() : 0);
+                    studentInfo.put("avatar", "https://ui-avatars.com/api/?background=16A34A&color=fff&name=" +
+                            (e.getStudent().getName() != null && !e.getStudent().getName().isEmpty()
+                                    ? e.getStudent().getName().charAt(0) : 'S'));
+                    return studentInfo;
+                })
+                .collect(Collectors.toList());
+    }
+
+
 
     public UserDto getUserDtoById(Long id) {
         User user = getUserEntityById(id);
@@ -178,18 +210,6 @@ public class UserService {
         );
     }
 
-    public List<UserResponseDto> getAllInstructors() {
-        User current = getCurrentUser();
-        if (current.getRole() != Role.ADMIN) {
-            throw new RuntimeException("Access denied: Only admin can view instructors");
-        }
-        return userRepository.findAll().stream()
-                .filter(user -> user.getRole() == Role.INSTRUCTOR)
-                .map(userMapper::toResponseDto)
-                .collect(Collectors.toList());
-    }
-
-
     public UserResponseDto getUserById(Long id) {
         User current = getCurrentUser();
         User target = userRepository.findById(id)
@@ -199,7 +219,6 @@ public class UserService {
         }
         return userMapper.toResponseDto(target);
     }
-
 
     @Transactional
     public UserResponseDto updateUser(Long id, UpdateUserDto updateDto) {
