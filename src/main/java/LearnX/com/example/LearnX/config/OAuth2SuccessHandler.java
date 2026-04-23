@@ -50,7 +50,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         String jwtToken = jwtUtil.generateToken(user);
 
-        String redirectUrl = "http://localhost:3000/auth/oauth2/success?token=" + jwtToken;
+        String redirectUrl = "https://talentflow-frontend-theta.vercel.app/auth/oauth2/success?token=" + jwtToken;
 
         System.out.println("✅ OAuth Success - Redirecting to: " + redirectUrl);
         response.sendRedirect(redirectUrl);
