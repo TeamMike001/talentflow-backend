@@ -25,31 +25,53 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final PrivateMessageRepository privateMessageRepository;
     private final UserService userService;
+    private final NotificationService notificationService;
 
     public ChatService(ChatMessageRepository chatMessageRepository,
                        PrivateMessageRepository privateMessageRepository,
-                       UserService userService) {
+                       UserService userService,
+                       NotificationService notificationService) {
         this.chatMessageRepository = chatMessageRepository;
         this.privateMessageRepository = privateMessageRepository;
         this.userService = userService;
+        this.notificationService = notificationService;
     }
 
-    // ========== GROUP CHAT METHODS ==========
+    // ========== GROUP CHAT METHODS WITH TAGGING ==========
 
     @Transactional
-    public ChatMessageResponse saveGroupMessage(ChatMessage message, User sender) {
+    public ChatMessageResponse saveGroupMessage(ChatMessage message, User sender, List<String> taggedUserEmails) {
         try {
             logger.info("Saving group message from user: {} (ID: {})", sender.getEmail(), sender.getId());
             logger.info("Message content: {}", message.getContent());
+            logger.info("Tagged users: {}", taggedUserEmails);
 
             message.setUser(sender);
             message.setChatType("group");
             message.setCreatedAt(LocalDateTime.now());
 
+            // Process tagged users
+            List<Long> mentionedUserIds = new ArrayList<>();
+            List<String> taggedUserNames = new ArrayList<>();
+            if (taggedUserEmails != null && !taggedUserEmails.isEmpty()) {
+                for (String email : taggedUserEmails) {
+                    try {
+                        User taggedUser = userService.findByEmail(email);
+                        if (taggedUser != null) {
+                            mentionedUserIds.add(taggedUser.getId());
+                            taggedUserNames.add(taggedUser.getName());
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Could not find user with email: {}", email);
+                    }
+                }
+                message.setMentionedUserIds(mentionedUserIds);
+            }
+
             ChatMessage saved = chatMessageRepository.save(message);
             logger.info("✅ Message saved successfully with ID: {}", saved.getId());
 
-            return toGroupResponseDto(saved, sender.getId());
+            return toGroupResponseDto(saved, sender.getId(), taggedUserNames);
 
         } catch (Exception e) {
             logger.error("❌ Failed to save message: {}", e.getMessage(), e);
@@ -74,24 +96,37 @@ public class ChatService {
     }
 
     private ChatMessageResponse toGroupResponseDto(ChatMessage message, Long currentUserId) {
-        User user = message.getUser();
-        String content = message.getContent();
+        return toGroupResponseDto(message, currentUserId, null);
+    }
 
-        String userName = user.getName() != null ? user.getName() : user.getEmail().split("@")[0];
-        char firstChar = userName.charAt(0);
-        String avatar = "https://ui-avatars.com/api/?background=2563EB&color=fff&name=" + firstChar;
+    private ChatMessageResponse toGroupResponseDto(ChatMessage message, Long currentUserId, List<String> taggedUserNames) {
+        User user = message.getUser();
+        String avatarUrl = "https://ui-avatars.com/api/?background=2563EB&color=fff&name=" +
+                (user.getName() != null && !user.getName().isEmpty() ? user.getName().charAt(0) : 'U');
+
+        // Get tagged user names if not provided
+        if (taggedUserNames == null && message.getMentionedUserIds() != null) {
+            taggedUserNames = new ArrayList<>();
+            for (Long userId : message.getMentionedUserIds()) {
+                try {
+                    User taggedUser = userService.getUserEntityById(userId);
+                    taggedUserNames.add(taggedUser.getName());
+                } catch (Exception e) {
+                    logger.warn("Could not find user with ID: {}", userId);
+                }
+            }
+        }
 
         return new ChatMessageResponse(
                 message.getId(),
-                user.getId(),
-                userName,
-                avatar,
-                content,
-                message.getFileUrl(),
+                message.getContent(),
                 message.getMessageType() != null ? message.getMessageType() : "text",
+                user.getId(),
+                user.getName() != null ? user.getName() : "User",
+                user.getRole().name(),
                 message.getCreatedAt(),
-                user.getId().equals(currentUserId),
-                "group"
+                avatarUrl,
+                taggedUserNames != null ? taggedUserNames : new ArrayList<>()
         );
     }
 
@@ -152,21 +187,17 @@ public class ChatService {
     private PrivateMessageResponse toPrivateResponseDto(PrivateMessage message, Long currentUserId) {
         User sender = message.getSender();
         User recipient = message.getRecipient();
-        String content = message.getContent();
-
-        String senderName = sender.getName() != null ? sender.getName() : sender.getEmail().split("@")[0];
-        String recipientName = recipient.getName() != null ? recipient.getName() : recipient.getEmail().split("@")[0];
 
         return new PrivateMessageResponse(
                 message.getId(),
                 sender.getId(),
-                senderName,
-                sender.getRole(),  // This is the Role enum
+                sender.getName(),
+                sender.getRole(),
                 recipient.getId(),
-                recipientName,
-                content,
+                recipient.getName(),
+                message.getContent(),
                 message.getFileUrl(),
-                message.getMessageType() != null ? message.getMessageType() : "text",
+                message.getMessageType(),
                 message.getCreatedAt(),
                 sender.getId().equals(currentUserId)
         );
@@ -180,15 +211,17 @@ public class ChatService {
             List<UserStatusDto> activeUsers = allUsers.stream()
                     .filter(User::isOnline)
                     .map(user -> {
-                        String userName = user.getName() != null ? user.getName() : user.getEmail().split("@")[0];
-                        char firstChar = userName.charAt(0);
-                        String avatar = "https://ui-avatars.com/api/?background=2563EB&color=fff&name=" + firstChar;
+                        String avatarUrl = "https://ui-avatars.com/api/?background=" +
+                                (user.getRole() == Role.INSTRUCTOR ? "2563EB" : "16A34A") +
+                                "&color=fff&name=" + (user.getName() != null ? user.getName().charAt(0) : 'U');
                         return new UserStatusDto(
                                 user.getId(),
-                                userName,
-                                avatar,
-                                true,
-                                user.getLastActiveAt()
+                                user.getName(),
+                                user.getEmail(),
+                                user.getRole().name(),
+                                user.isOnline(),
+                                user.getLastActiveAt(),
+                                avatarUrl
                         );
                     })
                     .collect(Collectors.toList());
@@ -204,71 +237,22 @@ public class ChatService {
     public UserStatusDto getUserStatus(Long userId) {
         try {
             User user = userService.getUserEntityById(userId);
-            String userName = user.getName() != null ? user.getName() : user.getEmail().split("@")[0];
-            char firstChar = userName.charAt(0);
-            String avatar = "https://ui-avatars.com/api/?background=2563EB&color=fff&name=" + firstChar;
+            String avatarUrl = "https://ui-avatars.com/api/?background=" +
+                    (user.getRole() == Role.INSTRUCTOR ? "2563EB" : "16A34A") +
+                    "&color=fff&name=" + (user.getName() != null ? user.getName().charAt(0) : 'U');
 
             return new UserStatusDto(
                     user.getId(),
-                    userName,
-                    avatar,
+                    user.getName(),
+                    user.getEmail(),
+                    user.getRole().name(),
                     user.isOnline(),
-                    user.getLastActiveAt()
+                    user.getLastActiveAt(),
+                    avatarUrl
             );
         } catch (Exception e) {
             logger.error("Error getting user status for ID {}: {}", userId, e.getMessage());
             return null;
         }
-    }
-
-    // ========== RECENT MESSAGES (Combined) ==========
-
-    public List<ChatMessageResponse> getRecentMessages() {
-        try {
-            User currentUser = userService.getCurrentUser();
-            List<ChatMessageResponse> allMessages = new ArrayList<>();
-
-            // Add group messages
-            List<ChatMessage> groupMessages = chatMessageRepository.findRecentGroupMessages();
-            allMessages.addAll(groupMessages.stream()
-                    .map(msg -> toGroupResponseDto(msg, currentUser.getId()))
-                    .collect(Collectors.toList()));
-
-            // Add private messages where user is involved
-            List<PrivateMessage> privateMessages = privateMessageRepository.findRecentPrivateMessages(currentUser.getId());
-            allMessages.addAll(privateMessages.stream()
-                    .map(msg -> toPrivateMessageResponseDto(msg, currentUser.getId()))
-                    .collect(Collectors.toList()));
-
-            // Sort by timestamp descending (newest first) and limit to 50
-            allMessages.sort((a, b) -> b.timestamp().compareTo(a.timestamp()));
-            return allMessages.stream().limit(50).collect(Collectors.toList());
-
-        } catch (Exception e) {
-            logger.error("Error getting recent messages: {}", e.getMessage(), e);
-            return new ArrayList<>();
-        }
-    }
-
-    private ChatMessageResponse toPrivateMessageResponseDto(PrivateMessage message, Long currentUserId) {
-        User sender = message.getSender();
-        String content = message.getContent();
-
-        String senderName = sender.getName() != null ? sender.getName() : sender.getEmail().split("@")[0];
-        char firstChar = senderName.charAt(0);
-        String avatar = "https://ui-avatars.com/api/?background=2563EB&color=fff&name=" + firstChar;
-
-        return new ChatMessageResponse(
-                message.getId(),
-                sender.getId(),
-                senderName,
-                avatar,
-                content,
-                message.getFileUrl(),
-                message.getMessageType() != null ? message.getMessageType() : "text",
-                message.getCreatedAt(),
-                sender.getId().equals(currentUserId),
-                "private"
-        );
     }
 }

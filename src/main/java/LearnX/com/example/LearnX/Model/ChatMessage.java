@@ -2,6 +2,8 @@ package LearnX.com.example.LearnX.Model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "chat_messages")
@@ -18,10 +20,22 @@ public class ChatMessage {
 
     private String fileUrl;
     private String messageType; // 'text', 'image', 'file'
-    private String chatType; // 'group' or 'private'
+    private String chatType;
 
     @Column(name = "recipient_id")
-    private Long recipientId; // For private messages (user ID)
+    private Long recipientId;
+    @ElementCollection
+    @CollectionTable(name = "message_mentions", joinColumns = @JoinColumn(name = "message_id"))
+    @Column(name = "mentioned_user_id")
+    private List<Long> mentionedUserIds = new ArrayList<>();
+
+    public List<Long> getMentionedUserIds() {
+        return mentionedUserIds;
+    }
+
+    public void setMentionedUserIds(List<Long> mentionedUserIds) {
+        this.mentionedUserIds = mentionedUserIds;
+    }
 
     @Column(name = "is_read")
     private boolean isRead = false;

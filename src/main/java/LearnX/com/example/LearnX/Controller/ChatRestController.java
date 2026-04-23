@@ -1,6 +1,5 @@
 package LearnX.com.example.LearnX.Controller;
 
-import LearnX.com.example.LearnX.Model.ChatMessage;
 import LearnX.com.example.LearnX.Model.User;
 import LearnX.com.example.LearnX.dtos.ChatMessageRequest;
 import LearnX.com.example.LearnX.dtos.ChatMessageResponse;
@@ -38,17 +37,28 @@ public class ChatRestController {
     public ResponseEntity<List<UserStatusDto>> getChatPartners() {
         List<User> partners = chatService.getChatPartners();
         List<UserStatusDto> partnerStatuses = partners.stream()
-                .map(user -> chatService.getUserStatus(user.getId()))
+                .map(user -> {
+                    String avatarUrl = "https://ui-avatars.com/api/?background=" +
+                            (user.getRole().name().equals("INSTRUCTOR") ? "2563EB" : "16A34A") +
+                            "&color=fff&name=" + (user.getName() != null ? user.getName().charAt(0) : 'U');
+                    return new UserStatusDto(
+                            user.getId(),
+                            user.getName(),
+                            user.getEmail(),
+                            user.getRole().name(),
+                            user.isOnline(),
+                            user.getLastActiveAt(),
+                            avatarUrl
+                    );
+                })
                 .collect(Collectors.toList());
         return ResponseEntity.ok(partnerStatuses);
     }
+
     @PostMapping("/test/message")
     public ResponseEntity<ChatMessageResponse> testSaveMessage(@RequestBody ChatMessageRequest request) {
         User user = userService.getCurrentUser();
-        ChatMessage message = new ChatMessage();
-        message.setContent(request.content());
-        message.setMessageType("text");
-        return ResponseEntity.ok(chatService.saveGroupMessage(message, user));
+        return ResponseEntity.ok(chatService.saveGroupMessage(null, user, request.taggedUsers()));
     }
 
     @GetMapping("/users/active")

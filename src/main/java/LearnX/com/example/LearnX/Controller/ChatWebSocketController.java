@@ -16,6 +16,8 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Controller
 public class ChatWebSocketController {
@@ -23,10 +25,10 @@ public class ChatWebSocketController {
 
     @Autowired
     private ChatService chatService;
-    
+
     @Autowired
     private UserService userService;
-    
+
     @Autowired
     private NotificationService notificationService;
 
@@ -37,12 +39,13 @@ public class ChatWebSocketController {
             String email = principal != null ? principal.getName() : null;
             logger.info("📨 Received group message from: {}", email);
             logger.info("Message content: {}", request.content());
-            
+            logger.info("Tagged users: {}", request.taggedUsers());
+
             if (email == null) {
                 logger.error("No principal found in WebSocket message");
                 return null;
             }
-            
+
             // Get user by email
             User user = userService.findByEmail(email);
             if (user == null) {
@@ -51,21 +54,40 @@ public class ChatWebSocketController {
             }
 
             logger.info("User found: {} (ID: {})", user.getEmail(), user.getId());
-            
+
             // Update user activity
             user.setLastActiveAt(LocalDateTime.now());
             user.setOnline(true);
             userService.updateUserLastActive(user);
 
-            // Create and save message
+            // Create and save message with tagged users
             ChatMessage message = new ChatMessage();
             message.setContent(request.content());
             message.setFileUrl(request.fileUrl());
             message.setMessageType(request.messageType() != null ? request.messageType() : "text");
 
-            ChatMessageResponse response = chatService.saveGroupMessage(message, user);
+            // Pass tagged users to save method
+            List<String> taggedUsers = request.taggedUsers() != null ? request.taggedUsers() : new ArrayList<>();
+            ChatMessageResponse response = chatService.saveGroupMessage(message, user, taggedUsers);
             logger.info("✅ Message saved and broadcasted: {}", response.content());
-            
+
+            // Send notifications to tagged users
+            for (String taggedEmail : taggedUsers) {
+                try {
+                    User taggedUser = userService.findByEmail(taggedEmail);
+                    if (taggedUser != null && !taggedUser.getId().equals(user.getId())) {
+                        notificationService.sendNotification(
+                                taggedUser,
+                                "You were mentioned in a message",
+                                user.getName() + " mentioned you in the community chat: " +
+                                        (request.content().length() > 50 ? request.content().substring(0, 50) + "..." : request.content())
+                        );
+                    }
+                } catch (Exception e) {
+                    logger.warn("Could not send notification to: {}", taggedEmail);
+                }
+            }
+
             return response;
 
         } catch (Exception e) {
