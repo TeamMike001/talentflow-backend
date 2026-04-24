@@ -2,16 +2,22 @@ package LearnX.com.example.LearnX.service;
 
 import LearnX.com.example.LearnX.Enum.Role;
 import LearnX.com.example.LearnX.Model.Course;
+import LearnX.com.example.LearnX.Model.Lecture;
+import LearnX.com.example.LearnX.Model.Section;
 import LearnX.com.example.LearnX.Model.User;
 import LearnX.com.example.LearnX.Repository.CourseRepository;
 import LearnX.com.example.LearnX.dtos.CourseCreateDto;
+import LearnX.com.example.LearnX.dtos.LectureDto;
 import LearnX.com.example.LearnX.dtos.CourseResponseDto;
+import LearnX.com.example.LearnX.dtos.SectionDto;
 import LearnX.com.example.LearnX.mapper.CourseMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -179,6 +185,10 @@ public class CourseService {
             course.setAdditionalInstructors(additionalInstructors);
             updated = true;
         }
+        if (dto.sections() != null) {
+            syncSections(course, dto.sections());
+            updated = true;
+        }
         // Always allow published to be set (even if false)
         course.setPublished(dto.published());
         updated = true;
@@ -217,4 +227,55 @@ public class CourseService {
                 .orElseThrow(() -> new RuntimeException("Course not found with id: " + courseId));
     }
 
+    private void syncSections(Course course, List<SectionDto> sectionDtos) {
+        Map<Long, Section> existingSectionsById = course.getSections().stream()
+                .filter(section -> section.getId() != null)
+                .collect(Collectors.toMap(Section::getId, section -> section, (left, right) -> left, LinkedHashMap::new));
+
+        List<Section> updatedSections = new ArrayList<>();
+        for (SectionDto sectionDto : sectionDtos) {
+            Section section = sectionDto.id() != null ? existingSectionsById.remove(sectionDto.id()) : null;
+            if (section == null) {
+                section = new Section();
+                section.setCourse(course);
+            }
+
+            section.setName(sectionDto.name());
+            section.setOrderIndex(sectionDto.orderIndex());
+            syncLectures(section, sectionDto.lectures());
+            updatedSections.add(section);
+        }
+
+        course.getSections().clear();
+        course.getSections().addAll(updatedSections);
+    }
+
+    private void syncLectures(Section section, List<LectureDto> lectureDtos) {
+        Map<Long, Lecture> existingLecturesById = section.getLectures().stream()
+                .filter(lecture -> lecture.getId() != null)
+                .collect(Collectors.toMap(Lecture::getId, lecture -> lecture, (left, right) -> left, LinkedHashMap::new));
+
+        List<Lecture> updatedLectures = new ArrayList<>();
+        if (lectureDtos != null) {
+            for (LectureDto lectureDto : lectureDtos) {
+                Lecture lecture = lectureDto.id() != null ? existingLecturesById.remove(lectureDto.id()) : null;
+                if (lecture == null) {
+                    lecture = new Lecture();
+                    lecture.setSection(section);
+                }
+
+                lecture.setName(lectureDto.name());
+                lecture.setOrderIndex(lectureDto.orderIndex());
+                lecture.setVideoUrl(lectureDto.videoUrl());
+                lecture.setNotes(lectureDto.notes());
+                lecture.setCaption(lectureDto.caption());
+                lecture.setDescription(lectureDto.description());
+                lecture.setAttachmentUrl(lectureDto.attachmentUrl());
+                updatedLectures.add(lecture);
+            }
+        }
+
+        section.getLectures().clear();
+        section.getLectures().addAll(updatedLectures);
+    }
 }

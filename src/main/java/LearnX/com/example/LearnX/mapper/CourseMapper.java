@@ -48,39 +48,46 @@ public class CourseMapper {
         course.setPublished(false);
         course.setCreatedAt(LocalDateTime.now());
 
-        // Map sections
-        if (dto.sections() != null) {
-            List<Section> sections = dto.sections().stream()
-                    .map(sectionDto -> {
-                        Section section = new Section();
-                        section.setName(sectionDto.name());
-                        section.setOrderIndex(sectionDto.orderIndex());
-                        section.setCourse(course);
-
-                        // Map lectures
-                        if (sectionDto.lectures() != null) {
-                            List<Lecture> lectures = sectionDto.lectures().stream()
-                                    .map(lectureDto -> {
-                                        Lecture lecture = new Lecture();
-                                        lecture.setName(lectureDto.name());
-                                        lecture.setOrderIndex(lectureDto.orderIndex());
-                                        lecture.setVideoUrl(lectureDto.videoUrl());
-                                        lecture.setNotes(lectureDto.notes());
-                                        lecture.setCaption(lectureDto.caption());
-                                        lecture.setDescription(lectureDto.description());
-                                        lecture.setAttachmentUrl(lectureDto.attachmentUrl());
-                                        lecture.setSection(section);
-                                        return lecture;
-                                    })
-                                    .collect(Collectors.toList());
-                            section.setLectures(lectures);
-                        }
-                        return section;
-                    })
-                    .collect(Collectors.toList());
-            course.setSections(sections);
-        }
+        course.setSections(buildSections(dto.sections(), course));
         return course;
+    }
+
+    public List<Section> buildSections(List<SectionDto> sectionDtos, Course course) {
+        if (sectionDtos == null) {
+            return new ArrayList<>();
+        }
+
+        return sectionDtos.stream()
+                .map(sectionDto -> {
+                    Section section = new Section();
+                    section.setName(sectionDto.name());
+                    section.setOrderIndex(sectionDto.orderIndex());
+                    section.setCourse(course);
+                    section.setLectures(buildLectures(sectionDto.lectures(), section));
+                    return section;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<Lecture> buildLectures(List<LectureDto> lectureDtos, Section section) {
+        if (lectureDtos == null) {
+            return new ArrayList<>();
+        }
+
+        return lectureDtos.stream()
+                .map(lectureDto -> {
+                    Lecture lecture = new Lecture();
+                    lecture.setName(lectureDto.name());
+                    lecture.setOrderIndex(lectureDto.orderIndex());
+                    lecture.setVideoUrl(lectureDto.videoUrl());
+                    lecture.setNotes(lectureDto.notes());
+                    lecture.setCaption(lectureDto.caption());
+                    lecture.setDescription(lectureDto.description());
+                    lecture.setAttachmentUrl(lectureDto.attachmentUrl());
+                    lecture.setSection(section);
+                    return lecture;
+                })
+                .collect(Collectors.toList());
     }
 
     public CourseResponseDto toResponseDto(Course course) {
@@ -97,6 +104,7 @@ public class CourseMapper {
                 .map(section -> {
                     List<LectureDto> lectureDtos = section.getLectures().stream()
                             .map(lecture -> new LectureDto(
+                                    lecture.getId(),
                                     lecture.getName(),
                                     lecture.getOrderIndex(),
                                     lecture.getVideoUrl(),
@@ -106,7 +114,7 @@ public class CourseMapper {
                                     lecture.getAttachmentUrl()
                             ))
                             .collect(Collectors.toList());
-                    return new SectionDto(section.getName(), section.getOrderIndex(), lectureDtos);
+                    return new SectionDto(section.getId(), section.getName(), section.getOrderIndex(), lectureDtos);
                 })
                 .collect(Collectors.toList());
 

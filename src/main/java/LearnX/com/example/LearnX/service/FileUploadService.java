@@ -25,11 +25,9 @@ public class FileUploadService {
             throw new RuntimeException("File is empty");
         }
 
-        // Optional: Validate file type (pdf, doc, images, etc.)
         String contentType = file.getContentType();
-        if (contentType == null || (!contentType.startsWith("image/") && 
-            !contentType.contains("pdf") && !contentType.contains("document"))) {
-            throw new RuntimeException("Unsupported file type. Allowed: images, PDF, documents");
+        if (!isAllowedFileType(contentType, file.getOriginalFilename())) {
+            throw new RuntimeException("Unsupported file type. Allowed: images, videos, PDF, and common document formats");
         }
 
         Map uploadResult = cloudinary.uploader().upload(
@@ -41,5 +39,42 @@ public class FileUploadService {
         );
 
         return (String) uploadResult.get("secure_url");
+    }
+
+    private boolean isAllowedFileType(String contentType, String originalFilename) {
+        if (contentType != null) {
+            String normalizedType = contentType.toLowerCase();
+            if (normalizedType.startsWith("image/") || normalizedType.startsWith("video/")) {
+                return true;
+            }
+
+            if (normalizedType.contains("pdf")
+                    || normalizedType.contains("text/")
+                    || normalizedType.contains("msword")
+                    || normalizedType.contains("officedocument")
+                    || normalizedType.contains("document")
+                    || normalizedType.contains("presentation")
+                    || normalizedType.contains("spreadsheet")) {
+                return true;
+            }
+        }
+
+        if (originalFilename == null) {
+            return false;
+        }
+
+        String lowerName = originalFilename.toLowerCase();
+        return lowerName.endsWith(".pdf")
+                || lowerName.endsWith(".doc")
+                || lowerName.endsWith(".docx")
+                || lowerName.endsWith(".ppt")
+                || lowerName.endsWith(".pptx")
+                || lowerName.endsWith(".txt")
+                || lowerName.endsWith(".rtf")
+                || lowerName.endsWith(".mp4")
+                || lowerName.endsWith(".mov")
+                || lowerName.endsWith(".avi")
+                || lowerName.endsWith(".mkv")
+                || lowerName.endsWith(".webm");
     }
 }
