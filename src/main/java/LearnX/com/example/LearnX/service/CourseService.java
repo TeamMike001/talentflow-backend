@@ -228,54 +228,116 @@ public class CourseService {
     }
 
     private void syncSections(Course course, List<SectionDto> sectionDtos) {
+        if (sectionDtos.isEmpty()) {
+            course.getSections().clear();
+            return;
+        }
+
         Map<Long, Section> existingSectionsById = course.getSections().stream()
                 .filter(section -> section.getId() != null)
                 .collect(Collectors.toMap(Section::getId, section -> section, (left, right) -> left, LinkedHashMap::new));
 
-        List<Section> updatedSections = new ArrayList<>();
         for (SectionDto sectionDto : sectionDtos) {
-            Section section = sectionDto.id() != null ? existingSectionsById.remove(sectionDto.id()) : null;
-            if (section == null) {
+            Section section = findMatchingSection(sectionDto, existingSectionsById, course.getSections());
+            boolean isNewSection = section == null;
+            if (isNewSection) {
                 section = new Section();
                 section.setCourse(course);
+                course.getSections().add(section);
             }
 
-            section.setName(sectionDto.name());
-            section.setOrderIndex(sectionDto.orderIndex());
+            if (sectionDto.name() != null) {
+                section.setName(sectionDto.name());
+            }
+            if (isNewSection || sectionDto.orderIndex() > 0) {
+                section.setOrderIndex(sectionDto.orderIndex());
+            }
             syncLectures(section, sectionDto.lectures());
-            updatedSections.add(section);
         }
-
-        course.getSections().clear();
-        course.getSections().addAll(updatedSections);
     }
 
     private void syncLectures(Section section, List<LectureDto> lectureDtos) {
+        if (lectureDtos == null) {
+            return;
+        }
+
+        if (lectureDtos.isEmpty()) {
+            section.getLectures().clear();
+            return;
+        }
+
         Map<Long, Lecture> existingLecturesById = section.getLectures().stream()
                 .filter(lecture -> lecture.getId() != null)
                 .collect(Collectors.toMap(Lecture::getId, lecture -> lecture, (left, right) -> left, LinkedHashMap::new));
 
-        List<Lecture> updatedLectures = new ArrayList<>();
-        if (lectureDtos != null) {
-            for (LectureDto lectureDto : lectureDtos) {
-                Lecture lecture = lectureDto.id() != null ? existingLecturesById.remove(lectureDto.id()) : null;
-                if (lecture == null) {
-                    lecture = new Lecture();
-                    lecture.setSection(section);
-                }
+        for (LectureDto lectureDto : lectureDtos) {
+            Lecture lecture = findMatchingLecture(lectureDto, existingLecturesById, section.getLectures());
+            boolean isNewLecture = lecture == null;
+            if (isNewLecture) {
+                lecture = new Lecture();
+                lecture.setSection(section);
+                section.getLectures().add(lecture);
+            }
 
-                lecture.setName(lectureDto.name());
-                lecture.setOrderIndex(lectureDto.orderIndex());
-                lecture.setVideoUrl(lectureDto.videoUrl());
-                lecture.setNotes(lectureDto.notes());
-                lecture.setCaption(lectureDto.caption());
-                lecture.setDescription(lectureDto.description());
-                lecture.setAttachmentUrl(lectureDto.attachmentUrl());
-                updatedLectures.add(lecture);
+            applyLectureUpdates(lecture, lectureDto, isNewLecture);
+        }
+    }
+
+    private Section findMatchingSection(SectionDto sectionDto, Map<Long, Section> existingSectionsById, List<Section> existingSections) {
+        if (sectionDto.id() != null) {
+            Section byId = existingSectionsById.get(sectionDto.id());
+            if (byId != null) {
+                return byId;
             }
         }
 
-        section.getLectures().clear();
-        section.getLectures().addAll(updatedLectures);
+        return existingSections.stream()
+                .filter(section -> namesMatch(section.getName(), sectionDto.name()))
+                .filter(section -> sectionDto.orderIndex() <= 0 || section.getOrderIndex() == sectionDto.orderIndex())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Lecture findMatchingLecture(LectureDto lectureDto, Map<Long, Lecture> existingLecturesById, List<Lecture> existingLectures) {
+        if (lectureDto.id() != null) {
+            Lecture byId = existingLecturesById.get(lectureDto.id());
+            if (byId != null) {
+                return byId;
+            }
+        }
+
+        return existingLectures.stream()
+                .filter(lecture -> namesMatch(lecture.getName(), lectureDto.name()))
+                .filter(lecture -> lectureDto.orderIndex() <= 0 || lecture.getOrderIndex() == lectureDto.orderIndex())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void applyLectureUpdates(Lecture lecture, LectureDto lectureDto, boolean isNewLecture) {
+        if (lectureDto.name() != null) {
+            lecture.setName(lectureDto.name());
+        }
+        if (isNewLecture || lectureDto.orderIndex() > 0) {
+            lecture.setOrderIndex(lectureDto.orderIndex());
+        }
+        if (lectureDto.videoUrl() != null) {
+            lecture.setVideoUrl(lectureDto.videoUrl());
+        }
+        if (lectureDto.notes() != null) {
+            lecture.setNotes(lectureDto.notes());
+        }
+        if (lectureDto.caption() != null) {
+            lecture.setCaption(lectureDto.caption());
+        }
+        if (lectureDto.description() != null) {
+            lecture.setDescription(lectureDto.description());
+        }
+        if (lectureDto.attachmentUrl() != null) {
+            lecture.setAttachmentUrl(lectureDto.attachmentUrl());
+        }
+    }
+
+    private boolean namesMatch(String existingName, String incomingName) {
+        return existingName != null && incomingName != null && existingName.equalsIgnoreCase(incomingName);
     }
 }
