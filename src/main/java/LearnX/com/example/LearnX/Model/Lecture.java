@@ -12,11 +12,14 @@ public class Lecture {
 
     private String name;
     private int orderIndex;
+    @Column(columnDefinition = "TEXT")
     private String videoUrl;
+    @Column(columnDefinition = "TEXT")
     private String notes;
     private String caption;
     @Column(columnDefinition = "TEXT")
     private String description;
+    @Column(columnDefinition = "TEXT")
     private String attachmentUrl;
 
     @ManyToOne

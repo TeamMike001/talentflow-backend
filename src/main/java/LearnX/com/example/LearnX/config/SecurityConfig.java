@@ -32,6 +32,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
 
     @Value("${frontend.url:https://talent-flow-frontend-team-mike.vercel.app}")
     private String frontendUrl;
@@ -39,11 +40,13 @@ public class SecurityConfig {
     public SecurityConfig(UserDetailsService userDetailsService,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           CustomOAuth2UserService customOAuth2UserService,
-                          OAuth2SuccessHandler oAuth2SuccessHandler) {
+                          OAuth2SuccessHandler oAuth2SuccessHandler,
+                          OAuth2FailureHandler oAuth2FailureHandler) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2UserService = customOAuth2UserService;
         this.oAuth2SuccessHandler = oAuth2SuccessHandler;
+        this.oAuth2FailureHandler = oAuth2FailureHandler;
     }
 
     @Bean
@@ -108,6 +111,7 @@ public class SecurityConfig {
                                 "/login/**",
                                 "/error",
                                 "/auth/oauth2/success",
+                                "/api/enrollments/course/*/count",
                                 "/api/courses/public/**",
                                 "/api/courses/published",
                                 "/api/courses/**",
@@ -125,6 +129,7 @@ public class SecurityConfig {
                                 .oidcUserService(customOAuth2UserService)
                         )
                         .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -2,7 +2,6 @@ package LearnX.com.example.LearnX.config;
 
 import LearnX.com.example.LearnX.Model.User;
 import LearnX.com.example.LearnX.Repository.UserRepository;
-import LearnX.com.example.LearnX.mapper.UserMapper;
 import LearnX.com.example.LearnX.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -12,6 +11,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -21,15 +21,13 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
-    private final UserMapper userMapper;
 
     @Value("${frontend.oauth.redirect.url}")
     private String frontendRedirectUrl;
 
-    public OAuth2SuccessHandler(UserRepository userRepository, JwtUtil jwtUtil, UserMapper userMapper) {
+    public OAuth2SuccessHandler(UserRepository userRepository, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
-        this.userMapper = userMapper;
     }
 
     @Override
@@ -49,10 +47,13 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         userRepository.save(user);
 
         String jwtToken = jwtUtil.generateToken(user);
+        String redirectUrl = UriComponentsBuilder
+                .fromUriString(frontendRedirectUrl)
+                .queryParam("token", jwtToken)
+                .build()
+                .toUriString();
 
-        String redirectUrl = "https://talentflow-frontend-theta.vercel.app/auth/oauth2/success?token=" + jwtToken;
-
-        System.out.println("✅ OAuth Success - Redirecting to: " + redirectUrl);
+        System.out.println("OAuth success redirect: " + redirectUrl);
         response.sendRedirect(redirectUrl);
     }
 }

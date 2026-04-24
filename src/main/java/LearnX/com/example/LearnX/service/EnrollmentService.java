@@ -127,6 +127,13 @@ public class EnrollmentService {
                 .collect(Collectors.toList());
     }
 
+    public long getEnrollmentCountByCourse(Long courseId) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new RuntimeException("Course not found");
+        }
+        return enrollmentRepository.countByCourseId(courseId);
+    }
+
     @Transactional
     public void recalculateCourseProgress(Long courseId) {
         User student = userService.getCurrentUser();
